@@ -2,6 +2,7 @@ from asyncio import run, set_event_loop_policy
 from datetime import datetime
 from logging import INFO, basicConfig, error, info, warning
 from platform import system
+from sys import argv
 
 from aiohttp import ClientConnectionError, ClientSession
 
@@ -12,7 +13,10 @@ def alert(suffix: str) -> str:
     warning(PREFIX % suffix)
 
 
-async def main() -> None:
+async def main(days: int) -> None:
+    if days < 1 or days > 10:
+        raise Exception('Number of days must be from one to ten.')
+
     url = 'https://api.privatbank.ua/p24api/exchange_rates?json&date='
     url += datetime.now().strftime('%d.%m.%Y')
 
@@ -40,4 +44,11 @@ if __name__ == '__main__':
     finally:
         basicConfig(level=INFO)
 
-        run(main())
+        try:
+            run(main(int(argv[1])))
+        except IndexError:
+            error('The required CLI argument (days number) is missing.')
+        except ValueError:
+            error('Number of days must be a decimal.')
+        except Exception as e:
+            error(e)
