@@ -1,37 +1,45 @@
-from asyncio import run, set_event_loop_policy
-from datetime import datetime
-from logging import INFO, basicConfig, error, info, warning
+from asyncio import gather, run, set_event_loop_policy
+from datetime import datetime, timedelta
+from logging import INFO, basicConfig, error, info
 from platform import system
 from sys import argv
 
-from aiohttp import ClientConnectionError, ClientSession
+from aiohttp import ClientSession
 
 
-def alert(suffix: str) -> str:
-    PREFIX = 'Something went wrong because a request to API was returned %.'
+async def request(day: int, session: ClientSession) -> dict:
+    URL = 'https://api.privatbank.ua/p24api/exchange_rates?json&date='
+    DATE = (datetime.now() - timedelta(day)).strftime('%d.%m.%Y')
+    CURRENCIES = 'EUR', 'USD'
+    RATES = 'sale', 'purchase'
 
-    warning(PREFIX % suffix)
+    try:
+        async with session.get(URL + DATE, ssl=False) as response:
+            if response.status != 200:
+                raise Exception(f'Bad status: {response.status}')
+            elif response.headers['Content-Type'] != 'application/json':
+                raise Exception('The format is not JSON.')
+
+            items = (await response.json())['exchangeRate']
+            items = filter(lambda item: item['currency'] in CURRENCIES, items)
+
+            items = {
+                item['currency']: {rate: item[f'{rate}Rate'] for rate in RATES}
+                for item in items
+            }
+
+            return {DATE: items}
+
+    except Exception as e:
+        raise Exception(e)
 
 
-async def main(days: int) -> None:
+async def main(days: int) -> list:
     if days < 1 or days > 10:
         raise Exception('Number of days must be from one to ten.')
 
-    url = 'https://api.privatbank.ua/p24api/exchange_rates?json&date='
-    url += datetime.now().strftime('%d.%m.%Y')
-
     async with ClientSession() as session:
-        try:
-            async with session.get(url, ssl=False) as response:
-                if response.status == 200:
-                    if response.headers['Content-Type'] == 'application/json':
-                        info(await response.json())
-                    else:
-                        alert('not in JSON format')
-                else:
-                    alert(f'with status {response.status}')
-        except ClientConnectionError as e:
-            error(e)
+        return await gather(*[request(day, session) for day in range(days)])
 
 if __name__ == '__main__':
     try:
@@ -45,7 +53,7 @@ if __name__ == '__main__':
         basicConfig(level=INFO)
 
         try:
-            run(main(int(argv[1])))
+            info(run(main(int(argv[1]))))
         except IndexError:
             error('The required CLI argument (days number) is missing.')
         except ValueError:
