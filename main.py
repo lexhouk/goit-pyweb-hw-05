@@ -1,6 +1,6 @@
 from asyncio import gather, run, set_event_loop_policy
 from datetime import datetime, timedelta
-from logging import INFO, basicConfig, error, info
+from logging import INFO, basicConfig, error, info, warning
 from platform import system
 from sys import argv
 
@@ -8,6 +8,15 @@ from aiohttp import ClientSession
 
 
 async def request(day: int, session: ClientSession) -> dict:
+    '''
+    Retrieves exchange rates from PrivatBank API for a specific day.
+
+    :param day: int
+    :param session: ClientSession
+
+    :return: dict
+    '''
+
     URL = 'https://api.privatbank.ua/p24api/exchange_rates?json&date='
     DATE = (datetime.now() - timedelta(day)).strftime('%d.%m.%Y')
     CURRENCIES = 'EUR', 'USD'
@@ -34,7 +43,15 @@ async def request(day: int, session: ClientSession) -> dict:
         raise Exception(e)
 
 
-async def main(days: int) -> list:
+async def main(days: int) -> list[dict]:
+    '''
+    Make a few requests in parallel and use only one session for that.
+
+    :param days: int
+
+    :return: list[dict]
+    '''
+
     if days < 1 or days > 10:
         raise Exception('Number of days must be from one to ten.')
 
@@ -59,4 +76,4 @@ if __name__ == '__main__':
         except ValueError:
             error('Number of days must be a decimal.')
         except Exception as e:
-            error(e)
+            warning(e)
