@@ -18,6 +18,43 @@ logging.basicConfig(level=logging.INFO)
 class Server:
     clients = set()
 
+    async def __alter(self, sender: str, message: str) -> str:
+        await asyncio.sleep(0)
+
+        command = search(r'^exchange\s*(\d*)$', message.strip())
+
+        if not isinstance(command, Match):
+            return message
+
+        path = AsyncPath('logs')
+
+        if not await path.exists():
+            await path.mkdir()
+
+        async with async_open(path / 'calls.log', 'a', encoding='utf-8') as f:
+            await f.write(f'{datetime.now()}\t{sender}\t{message}\n')
+
+        days = int(command.group(1) or 1)
+        message = ''
+
+        for day_currencies in await exchange(days, []):
+            for date, currencies in day_currencies.items():
+                message += f'\n{date}:'
+
+                for currency, rates in currencies.items():
+                    records = []
+
+                    for key, value in rates.items():
+                        if value is not None:
+                            records.append(f'{key}: {value} UAH')
+
+                    if records:
+                        message += '\n\t{}:\n\t\t{}'.format(
+                            currency,
+                            '\n\t\t'.join(records)
+                        )
+        return message
+
     async def register(self, ws: WebSocketServerProtocol):
         ws.name = names.get_full_name()
         self.clients.add(ws)
@@ -42,40 +79,7 @@ class Server:
 
     async def distrubute(self, ws: WebSocketServerProtocol):
         async for message in ws:
-            command = search(r'^exchange\s*(\d*)$', message.strip())
-
-            if isinstance(command, Match):
-                path = AsyncPath('logs')
-
-                if not await path.exists():
-                    await path.mkdir()
-
-                async with async_open(path / 'calls.log',
-                                      'a',
-                                      encoding='utf-8') as file:
-                    await file.write(f'{datetime.now()}\t{ws.name}\t'
-                                     f'{message}\n')
-
-                days = int(command.group(1) or 1)
-                message = ''
-
-                for day_currencies in await exchange(days, []):
-                    for date, currencies in day_currencies.items():
-                        message += f'\n{date}:'
-
-                        for currency, rates in currencies.items():
-                            records = []
-
-                            for key, value in rates.items():
-                                if value is not None:
-                                    records.append(f'{key}: {value} UAH')
-
-                            if records:
-                                message += '\n\t{}:\n\t\t{}'.format(
-                                    currency,
-                                    '\n\t\t'.join(records)
-                                )
-
+            message = await self.__alter(ws.name, message)
             await self.send_to_clients(f"{ws.name}: {message}")
 
 
