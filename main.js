@@ -21,7 +21,6 @@ ws.onmessage = (e) => {
     elMsg.innerHTML = text
         .replace(/\n/g, '\n\t')
         .replace(/\n/g, '<br>')
-        .replace(/\t/g, '\t'.repeat(2))
         .replace(/\t/g, '&nbsp;'.repeat(3))
 
     subscribe.appendChild(elMsg)

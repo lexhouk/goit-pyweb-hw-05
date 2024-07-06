@@ -1,4 +1,7 @@
+from aiofile import async_open
+from aiopath import AsyncPath
 import asyncio
+from datetime import datetime
 import logging
 from re import Match, search
 
@@ -42,6 +45,17 @@ class Server:
             command = search(r'^exchange\s*(\d*)$', message.strip())
 
             if isinstance(command, Match):
+                path = AsyncPath('logs')
+
+                if not await path.exists():
+                    await path.mkdir()
+
+                async with async_open(path / 'calls.log',
+                                      'a',
+                                      encoding='utf-8') as file:
+                    await file.write(f'{datetime.now()}\t{ws.name}\t'
+                                     f'{message}\n')
+
                 days = int(command.group(1) or 1)
                 message = ''
 
