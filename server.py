@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from re import Match, search
 
 import websockets
 import names
@@ -38,21 +39,28 @@ class Server:
 
     async def distrubute(self, ws: WebSocketServerProtocol):
         async for message in ws:
-            if message == 'exchange':
-                raw: dict = (await exchange(1, []))[0].popitem()[1]
-                items = []
+            command = search(r'^exchange\s*(\d*)$', message.strip())
 
-                for currency, rates in raw.items():
-                    records = []
+            if isinstance(command, Match):
+                days = int(command.group(1) or 1)
+                message = ''
 
-                    for key, value in rates.items():
-                        if value is not None:
-                            records.append(f'{key}: {value} UAH')
+                for day_currencies in await exchange(days, []):
+                    for date, currencies in day_currencies.items():
+                        message += f'\n{date}:'
 
-                    if records:
-                        items.append(f'{currency} ({", ".join(records)})')
+                        for currency, rates in currencies.items():
+                            records = []
 
-                message = ', '.join(items)
+                            for key, value in rates.items():
+                                if value is not None:
+                                    records.append(f'{key}: {value} UAH')
+
+                            if records:
+                                message += '\n\t{}:\n\t\t{}'.format(
+                                    currency,
+                                    '\n\t\t'.join(records)
+                                )
 
             await self.send_to_clients(f"{ws.name}: {message}")
 

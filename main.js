@@ -17,6 +17,12 @@ ws.onmessage = (e) => {
     text = e.data
 
     const elMsg = document.createElement('div')
-    elMsg.textContent = text
+
+    elMsg.innerHTML = text
+        .replace(/\n/g, '\n\t')
+        .replace(/\n/g, '<br>')
+        .replace(/\t/g, '\t'.repeat(2))
+        .replace(/\t/g, '&nbsp;'.repeat(3))
+
     subscribe.appendChild(elMsg)
 }
