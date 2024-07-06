@@ -66,6 +66,8 @@ async def main(days: int, currencies: list[str]) -> list[dict]:
                               for day in range(days)])
 
 if __name__ == '__main__':
+    basicConfig(level=INFO)
+
     try:
         if system() == 'Windows':
             from asyncio import WindowsSelectorEventLoopPolicy
@@ -73,9 +75,7 @@ if __name__ == '__main__':
             set_event_loop_policy(WindowsSelectorEventLoopPolicy())
     except Exception:
         error('App preparation for your operating system has failed.')
-    finally:
-        basicConfig(level=INFO)
-
+    else:
         try:
             info(run(main(int(argv[1]), argv[2:] if len(argv) > 2 else [])))
         except IndexError:
